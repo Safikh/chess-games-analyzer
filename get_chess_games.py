@@ -1,6 +1,15 @@
 import requests
 import sys
 import json
+import os
+
+def make_dir():
+    '''
+    Creates a directory for storing the output data.
+    '''
+    if not os.path.exists('data'):
+        os.mkdir('data')
+
 
 def get_months(username: str) -> list:
     '''
@@ -14,6 +23,7 @@ def get_months(username: str) -> list:
     data = response.json()
     for month in data['archives']:
         months.append(month)
+    make_dir()
     with open(f'data/{username}_months.txt', 'w') as f:
         for month in months:
             f.write(month + '\n')
@@ -33,10 +43,11 @@ def get_games(username: str, months: list) -> list:
         data = response.json()
         for game in data['games']:
             games.append(game)
+    make_dir()
     file = f'data/{username}_games.json'
     with open(file, 'w') as f:
         json.dump(games, f)
-    print(f'{len(games)} games found. Stroed in {file}.')
+    print(f'{len(games)} games found. Stored in {file}.')
     return games
     
 
