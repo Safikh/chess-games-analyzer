@@ -2,6 +2,9 @@ import requests
 import sys
 import json
 import os
+import pandas as pd
+import numpy as np
+import re
 
 def make_dir():
     '''
@@ -47,8 +50,56 @@ def get_games(username: str, months: list) -> list:
     file = f'data/{username}_games.json'
     with open(file, 'w') as f:
         json.dump(games, f)
-    print(f'{len(games)} games found. Stored in {file}.')
+    print(f'{len(games)} games found.')
     return games
+
+
+def get_accuracies_(element):
+    '''
+    Internal function for getting the accuracies of users
+    '''
+    if pd.isna(element):
+        return np.nan, np.nan
+    else:
+        return element['white'], element['black']
+
+
+def create_csv(username: str, download_games: bool = False) -> None:
+    '''
+    Creates a csv file for a user.
+    Input: username, download_games (optional)
+    Output: None
+    '''
+    if download_games:
+        get_games(username, get_months(username))
+    file = f'data/{username}_games.json'
+    with open(file, 'r') as f:
+        games = json.load(f)
+    
+    df = pd.DataFrame(games)
+    cols_to_extract = ['Event', 'Site', 'Date', 'Round', 'White', 'Black',
+                        'Result', 'ECO', 'ECOUrl', 'WhiteElo', 'BlackElo',
+                        'Termination', 'StartTime', 'EndDate', 'EndTime']
+    
+    # Parse the pgn column
+    for col in cols_to_extract:
+        df[col] = df['pgn'].apply(lambda x: re.findall(f'{col} "(.*?)"', x)[0]) 
+    
+    df['moves'] = df['pgn'].apply(lambda x: x.split('\n')[-2])
+    df.drop(columns=['pgn'], inplace=True)
+
+    df['WhiteAccuracy'], df['BlackAccuracy'] = \
+        zip(*df['accuracies'].apply(get_accuracies_))
+    df.drop(columns=['accuracies'], inplace=True)
+
+    df.drop(columns=['end_time', 'start_time', 'white', 'black',
+                    'tcn', 'uuid']
+            , inplace=True)
+
+    df.to_csv(f'data/{username}_games.csv', index=False)
+    print(f'Games for {username} saved to data/{username}_games.csv')
+
+
     
 
 if __name__ == '__main__':
@@ -56,5 +107,4 @@ if __name__ == '__main__':
         print('Usage: get_chess_games.py <username>')
         sys.exit(1)
     username = sys.argv[1]
-    months = get_months(username)
-    get_games(username, months)
+    create_csv(username, True)
