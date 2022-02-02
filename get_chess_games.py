@@ -95,6 +95,16 @@ def create_csv(username: str, download_games: bool = False) -> None:
     df.drop(columns=['end_time', 'start_time', 'white', 'black',
                     'tcn', 'uuid']
             , inplace=True)
+    
+    # Extract the moves and timestamps
+    df['white_moves'] = df.moves.apply(lambda x: re.findall(r'[\d]+[\.] ([a-zA-z0-9\+\=\-]{2,}) {', x))
+    df['black_moves'] = df.moves.apply(lambda x: re.findall(r'[\d]+[\.]{3} ([a-zA-z0-9\+\=\-]{2,}) {', x))
+    df['white_timestamps'] = df.moves.apply(lambda x: re.findall(r'[\d]+[\.] [a-zA-z0-9\+\=\-]{2,} \{\[%clk ([0-9\:\.]+)', x))
+    df['black_timestamps'] = df.moves.apply(lambda x: re.findall(r'[\d]+[\.]{3} [a-zA-z0-9\+\=\-]{2,} \{\[%clk ([0-9\:\.]+)', x))
+
+    # Game id as the primary key
+    df['game_id'] = df.index.values + 1
+
 
     df.to_csv(f'data/{username}_games.csv', index=False)
     print(f'Games for {username} saved to data/{username}_games.csv')
