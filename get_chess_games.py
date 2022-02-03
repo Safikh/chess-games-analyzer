@@ -64,11 +64,11 @@ def get_accuracies_(element):
         return element['white'], element['black']
 
 
-def create_csv(username: str, download_games: bool = False) -> None:
+def create_csv(username: str, download_games: bool = False) -> str:
     '''
     Creates a csv file for a user.
     Input: username, download_games (optional)
-    Output: None
+    Output: filepath to csv file
     '''
     if download_games:
         get_games(username, get_months(username))
@@ -109,7 +109,66 @@ def create_csv(username: str, download_games: bool = False) -> None:
     df.to_csv(f'data/{username}_games.csv', index=False)
     print(f'Games for {username} saved to data/{username}_games.csv')
 
+    return f'data/{username}_games.csv'
 
+
+def transform_dataset(filepath:str, username: str) -> str:
+    '''
+    Transforms the dataset from black vs white to player v opponent
+    Input: 
+        filepath: path to the csv file
+        username: username of the player
+    Output:
+        filepath: path to the transformed csv file
+    '''
+
+    df = pd.read_csv(filepath)
+    cols = df.columns
+
+    
+    df_white = df[df['White'] == username].copy()
+    df_black = df[df['Black'] == username].copy()
+
+
+    df_white.loc[: , 'Player'] = df_white['White']
+    df_black.loc[: , 'Player'] = df_black['Black']
+    df_white.loc[: , 'Opponent'] = df_white['Black']
+    df_black.loc[: , 'Opponent'] = df_black['White']
+    df_white.loc[: , 'Player_color'] = 'white'
+    df_black.loc[: , 'Player_color'] = 'black'
+    df_white.loc[: , 'Opponent_color'] = 'black'
+    df_black.loc[: , 'Opponent_color'] = 'white'
+    df_white.loc[: , 'Result'] = df_white['Result'].map({'1-0': 1, '0-1': -1, '1/2-1/2': 0})
+    df_black.loc[: , 'Result'] = df_black['Result'].map({'1-0': -1, '0-1': 1, '1/2-1/2': 0})
+    df_white.loc[: , 'Player_elo'] = df_white['WhiteElo']
+    df_black.loc[: , 'Player_elo'] = df_black['BlackElo']
+    df_white.loc[: , 'Opponent_elo'] = df_white['BlackElo']
+    df_black.loc[: , 'Opponent_elo'] = df_black['WhiteElo']
+    df_white.loc[: , 'Player_accuracy'] = df_white['WhiteAccuracy']
+    df_black.loc[: , 'Player_accuracy'] = df_black['BlackAccuracy']
+    df_white.loc[: , 'Opponent_accuracy'] = df_white['BlackAccuracy']
+    df_black.loc[: , 'Opponent_accuracy'] = df_black['WhiteAccuracy']
+    df_white.loc[: , 'Player_moves'] = df_white['moves']
+    df_black.loc[: , 'Player_moves'] = df_black['moves']
+    df_white.loc[: , 'Opponent_moves'] = df_white['moves']
+    df_black.loc[: , 'Opponent_moves'] = df_black['moves']
+    df_white.loc[: , 'Player_timestamps'] = df_white['white_timestamps']
+    df_black.loc[: , 'Player_timestamps'] = df_black['black_timestamps']
+    df_white.loc[: , 'Opponent_timestamps'] = df_white['black_timestamps']
+    df_black.loc[: , 'Opponent_timestamps'] = df_black['white_timestamps']
+
+
+    cols_to_be_dropped = [col for col in cols if col.lower().startswith(('white', 'black'))]
+
+    
+    df_new = pd.concat([df_white, df_black])
+    df_new = df_new.sort_values(by=['game_id'], ascending=True).reset_index(drop=True)
+    df_new.drop(columns=cols_to_be_dropped, inplace=True)
+
+    df_new.to_csv(f'data/{username}_data.csv', index=False)
+    print(f'Data for {username} saved to data/{username}_data.csv')
+
+    return f'data/{username}_data.csv'
     
 
 if __name__ == '__main__':
@@ -117,4 +176,5 @@ if __name__ == '__main__':
         print('Usage: get_chess_games.py <username>')
         sys.exit(1)
     username = sys.argv[1]
-    create_csv(username, True)
+    path = create_csv(username, True)
+    transform_dataset(path, username)
